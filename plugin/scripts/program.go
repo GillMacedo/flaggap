@@ -800,8 +800,14 @@ func flaggapHook(f *FlagSet, arguments []string) {
 	})
 	nf := f.GetNormalizeFunc()
 	for _, a := range arguments {
-		if strings.HasPrefix(a, "--") && len(a) > 2 {
-			name := strings.SplitN(a[2:], "=", 2)[0]
+		name, hasDash := strings.CutPrefix(a, "-")
+		if !hasDash {
+			continue
+		}
+		name, isLong := strings.CutPrefix(name, "-")
+		name, _, _ = strings.Cut(name, "=")
+		// A one-dash spelling can be a mistyped long flag.
+		if name != "" && (isLong || len(name) > 1) {
 			b.WriteString("norm")
 			flaggapQuote(&b, name, string(nf(f, name)))
 			b.WriteString("\n")

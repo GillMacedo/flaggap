@@ -112,7 +112,7 @@ func TestAgainstRealParsers(t *testing.T) {
 	}
 }
 
-func compare(t *testing.T, tg target, args []string) {
+func compare(t *testing.T, tg target, args []string) jsonReport {
 	t.Helper()
 	out, _ := exec.Command(plain[tg.name], args...).Output()
 	started := tg.ok(out)
@@ -120,7 +120,7 @@ func compare(t *testing.T, tg target, args []string) {
 	r := runTool(t, nil, append([]string{"--format", "json", "--fail-on", "never", "--pkg", tg.pkg, "--"}, args...)...)
 	if r.code != 0 {
 		t.Errorf("%q: flaggap exit %d: %s", args, r.code, r.stderr)
-		return
+		return jsonReport{}
 	}
 	var rep jsonReport
 	if err := json.Unmarshal([]byte(r.stdout), &rep); err != nil {
@@ -150,6 +150,7 @@ func compare(t *testing.T, tg target, args []string) {
 			}
 		}
 	}
+	return rep
 }
 
 // TestRealParserCases pins cases the random test may not draw.
@@ -165,6 +166,28 @@ func TestRealParserCases(t *testing.T) {
 	for _, tg := range targets {
 		for _, args := range cases[tg.name] {
 			compare(t, tg, append(append([]string{}, tg.prefix...), args...))
+		}
+		switch tg.name {
+		case "plain":
+			t.Run("reports the first unknown shorthand", func(t *testing.T) {
+				rep := compare(t, tg, []string{"-dvx"})
+				if len(rep.Findings) != 1 || rep.Findings[0].Code != "unknown-flag" || !strings.Contains(rep.Findings[0].Message, "unknown shorthand flag: 'x'") {
+					t.Fatalf("got %+v, want an unknown shorthand finding for x", rep.Findings)
+				}
+			})
+		case "worker":
+			t.Run("suggests the normalized long flag", func(t *testing.T) {
+				rep := compare(t, tg, []string{"run", "-log_level=debug"})
+				if len(rep.Findings) != 1 || rep.Findings[0].Code != "single-dash" || rep.Findings[0].Fix != "write --log-level=debug" {
+					t.Fatalf("got %+v, want a single-dash finding with the normalized flag and its value", rep.Findings)
+				}
+			})
+			t.Run("accepts the double-dash flag", func(t *testing.T) {
+				rep := compare(t, tg, []string{"run", "--log-level=debug"})
+				if len(rep.Findings) != 0 {
+					t.Fatalf("got %+v, want no findings", rep.Findings)
+				}
+			})
 		}
 	}
 }
