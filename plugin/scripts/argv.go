@@ -248,33 +248,32 @@ func (c *checker) checkPflag() {
 		}
 		// One dash: pflag reads a group of one-letter shorthands.
 		shorts := s[1:]
-		long := strings.SplitN(shorts, "=", 2)[0]
+		long, value, hasValue := strings.Cut(shorts, "=")
 		if strings.Contains(shorts, "$(") && strings.HasPrefix(shorts, "$(") {
 			c.unresolvedName(t)
 			return
 		}
-		if len(long) > 1 && c.lookup(long) != nil {
+		fix := ""
+		if def := c.lookup(long); len(long) > 1 && def != nil {
+			fix = "write --" + def.Name
+			if hasValue {
+				fix += "=" + value
+			}
 			if sd := c.prog.Shorthands[long[:1]]; sd != nil && !sd.boolLike {
 				v := shorts[1:]
 				if err := valueErr(sd, v); err != nil {
-					c.fail(i, i+1, c.valueGoMsg(sd, v), "single-dash", s, fmt.Sprintf("pflag reads one dash as one-letter shorthands, so %s isn't --%s: it gives -%s (--%s) the value %q, which isn't a valid %s (%v), and the program exits at startup", s, long, long[:1], sd.Name, v, kindWord(sd.Kind), err), "write --"+shorts)
+					c.fail(i, i+1, c.valueGoMsg(sd, v), "single-dash", s, fmt.Sprintf("pflag reads one dash as one-letter shorthands, so %s isn't --%s: it gives -%s (--%s) the value %q, which isn't a valid %s (%v), and the program exits at startup", s, def.Name, long[:1], sd.Name, v, kindWord(sd.Kind), err), fix)
 					return
 				}
-				msg := fmt.Sprintf("pflag reads one dash as one-letter shorthands, so %s isn't --%s: it sets -%s (--%s) to %q, and --%s keeps its default", s, long, long[:1], sd.Name, v, long)
-				if sd.Name == long {
-					msg = fmt.Sprintf("pflag reads one dash as one-letter shorthands, so %s is the shorthand -%s with the value %q: --%s gets %q", s, long[:1], v, long, v)
+				msg := fmt.Sprintf("pflag reads one dash as one-letter shorthands, so %s isn't --%s: it sets -%s (--%s) to %q, and --%s keeps its default", s, def.Name, long[:1], sd.Name, v, def.Name)
+				if sd == def {
+					msg = fmt.Sprintf("pflag reads one dash as one-letter shorthands, so %s is the shorthand -%s with the value %q: --%s gets %q", s, long[:1], v, def.Name, v)
 				}
-				c.add(sevError, "single-dash", s, msg, "write --"+shorts)
+				c.add(sevError, "single-dash", s, msg, fix)
 				c.real = append(c.real, s)
 				c.repeat(seen, sd, s)
 				continue
 			}
-			goMsg := fmt.Sprintf("unknown shorthand flag: '%c' in %s", long[0], s)
-			if sd := c.prog.Shorthands[long[:1]]; sd != nil {
-				goMsg = "in " + s // a group of shorthands; the real message names whichever letter fails
-			}
-			c.fail(i, i+1, goMsg, "single-dash", s, fmt.Sprintf("pflag reads one dash as one-letter shorthands, so %s isn't --%s, and the program exits at startup", s, long), "write --"+shorts)
-			return
 		}
 		start := i
 		consumed := false
@@ -286,7 +285,12 @@ func (c *checker) checkPflag() {
 					c.fail(i, i+1, "help requested", "exits", s, fmt.Sprintf("%s makes pflag print the usage and the program exit, so the container stops right after it starts", s), "remove it")
 					return
 				}
-				c.fail(i, i+1, fmt.Sprintf("unknown shorthand flag: '%s' in %s", ch, s), "unknown-flag", s, fmt.Sprintf("-%s is not a shorthand flag of %s, so the program exits at startup with \"unknown shorthand flag: '%s' in %s\"", ch, c.prog.Path, ch, s), "remove it")
+				goMsg := fmt.Sprintf("unknown shorthand flag: %q in -%s", rune(ch[0]), shorts)
+				if fix != "" {
+					c.fail(i, i+1, goMsg, "single-dash", s, fmt.Sprintf("pflag reads one dash as one-letter shorthands, so the program exits at startup with %q", goMsg), fix)
+				} else {
+					c.fail(i, i+1, goMsg, "unknown-flag", s, fmt.Sprintf("-%s is not a shorthand flag of %s, so the program exits at startup with %q", ch, c.prog.Path, goMsg), "remove it")
+				}
 				return
 			}
 			if d.Name == "help" {
