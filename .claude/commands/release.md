@@ -1,0 +1,1 @@
+Prepare release $ARGUMENTS: move the `[Unreleased]` entries in `CHANGELOG.md` under a new `## [$ARGUMENTS] - DATE` heading, set the same version in `plugin/.claude-plugin/plugin.json` and in `version` in `plugin/scripts/flaggap.go`, update the pinned `@v` in `README.md`, then run `make test` and `make lint`. Don't tag or push.

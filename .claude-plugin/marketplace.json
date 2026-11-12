@@ -1,0 +1,14 @@
+{
+  "name": "flaggap-marketplace",
+  "description": "Marketplace for flaggap, which checks the flags Kubernetes manifests pass to a Go program against the flags it defines.",
+  "owner": {
+    "name": "Giulliano Macedo"
+  },
+  "plugins": [
+    {
+      "name": "flaggap",
+      "source": "./plugin",
+      "description": "Find container args that a Go program rejects at startup or silently ignores, checked with the program's own flag, pflag or cobra parser."
+    }
+  ]
+}

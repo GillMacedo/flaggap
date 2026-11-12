@@ -1,0 +1,13 @@
+{
+  "name": "flaggap",
+  "version": "0.1.0",
+  "description": "Check the flags Kubernetes manifests pass to a Go program against the flags its source defines, with the program's real flag, pflag or cobra parser: unknown flags and bad values that crash it at startup, and silent mistakes such as --debug false, flags after a positional argument and -port=80 in pflag.",
+  "author": {
+    "name": "Giulliano Macedo",
+    "url": "https://github.com/GillMacedo"
+  },
+  "homepage": "https://github.com/GillMacedo/flaggap",
+  "repository": "https://github.com/GillMacedo/flaggap",
+  "license": "MIT",
+  "keywords": ["go", "golang", "kubernetes", "helm", "flags", "cobra", "pflag", "crashloopbackoff", "ci"]
+}

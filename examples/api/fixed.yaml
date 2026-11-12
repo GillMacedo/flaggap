@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: shop
+spec:
+  selector:
+    matchLabels: {app: api}
+  template:
+    metadata:
+      labels: {app: api}
+    spec:
+      containers:
+        - name: api
+          image: registry.example.com/shop/api:1.4.0
+          env:
+            - name: LEVEL
+              value: debug
+            - name: GRACE
+              value: "30s"
+          args:
+            - --listen=:9090
+            - --log-level=$(LEVEL)
+            - --shutdown-timeout=$(GRACE)
+            - --debug=false
+            - --workers=8
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: api-reindex
+  namespace: shop
+spec:
+  schedule: "0 3 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: reindex
+              image: registry.example.com/shop/api:1.4.0
+              command: ["/api", "-workers=2", "-tag=nightly", "reindex"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api
+  namespace: shop
+spec:
+  selector: {app: api}
+  ports:
+    - port: 80
+      targetPort: 9090
